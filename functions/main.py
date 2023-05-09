@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from http import HTTPStatus
 
 from firebase_admin import initialize_app, firestore
 from firebase_functions import https_fn, firestore_fn
@@ -8,25 +7,18 @@ from google.cloud.firestore_v1 import Client, base_query, DocumentSnapshot
 initialize_app()
 
 
-@https_fn.on_request()
-def check_attendance(request: https_fn.Request) -> https_fn.Response:
+@https_fn.on_call()
+def check_attendance(request: https_fn.CallableRequest):
     """출석 확인을 진행하는 함수
 
     외부로부터 출석확인 요청을 받은 경우 적절한 요청인지 분석 후 출결을 진행해주는 함수
-    Examples:
-        POST 요청 예제에 대해 작성
-
-        ::
-
-            <Functions주소>/check_attendance?device_uuid=df9TYkja-jsj2&tag_uuid=dfO39fj&uid=XpoFRxgL8h91aQYybEzr
     Args:
-        request: Http요청에 대한 정보가 들어간다.(자동으로 할당되는 매개변수)
+        request: Firebase Function 요청에 대한 정보가 들어간다.(자동으로 할당되는 매개변수)
     Notes:
-        해당 함수는 직접 호출이 아닌 Firestore Function에 의해 호출되며 이 때 아래와 같은 매개변수가 필요하다
+        해당 함수는 직접 호출이 아닌 Firebase Function에 의해 호출되며 호출 시 아래와 같은 매개변수가 필요하다
 
         * device_uuid: 학생 기기의 UUID
         * tag_uuid: 태그(강의실) UUID
-        * uid: 로그인된 사용자 계정의 UID
     Returns:
         출석체크가 수행된 경우 서버에 등록되었음과 함께 응답코드 200이 반환되고 그렇지 않은 경우 오류코드와 함께 오류에 관한 정보를 반환한다.
     Raises:
@@ -34,25 +26,21 @@ def check_attendance(request: https_fn.Request) -> https_fn.Response:
         SubjectNotFoundError: 과목을 찾을 수 없거나 출석 유효시간이 지났을 때
     """
     client: Client = firestore.client()
-    args = request.args
+    args = request.data
     snapshot = client.collection('students') \
         .where(filter=base_query.FieldFilter('device_uuid', '==', args.get("device_uuid"))) \
         .get()
     try:
         student = Student(snapshot.__iter__().__next__())
         attendance = Attendance(student, args.get('tag_uuid'))
-        (_, document_ref) = client.collection(f'attendance_history/student/{args.get("uid")}') \
+        (_, document_ref) = client.collection(f'attendance_history/student/{request.auth.uid}') \
             .add(document_data=attendance.to_firestore())
         client.collection(f'attendance_history/professor/{attendance.professor.uid}') \
             .add(document_data=attendance.to_firestore(ref_id=document_ref.id))
-        return https_fn.Response(f'{document_ref.id} added on attendance history at {attendance.timestamp}.')
-    except ProfessorNotFoundError:
-        return https_fn.Response('강의자를 찾을 수 없습니다.', status=HTTPStatus.NOT_FOUND)
-    except SubjectNotFoundError:
-        return https_fn.Response('과목을 찾을 수 없거나 출결 유효 시간이 초과되었습니다.', status=HTTPStatus.NOT_FOUND)
-    except StopIteration:
-        return https_fn.Response(f'{args.get("student_device_uuid")} 은 유효한 디바이스 UUID가 아닙니다.',
-                                 status=HTTPStatus.UNAUTHORIZED)
+        print(f'{document_ref.id} added on attendance history at {attendance.timestamp}.')
+
+    except Exception as error:
+        raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.NOT_FOUND, message=str(error))
 
 
 @firestore_fn.on_document_updated(document='attendance_history/professor/{professor_uid}/*')
@@ -87,6 +75,7 @@ class SubjectNotFoundError(Exception):
 
 class ProfessorNotFoundError(Exception):
     """강의자 정보를 찾을 수 없을 때 발생하는 예외"""
+
     def __init__(self):
         super().__init__('Can not found professor info')
         print('Can not find professor with id')
