@@ -33,14 +33,33 @@ def check_attendance(request: https_fn.CallableRequest):
     try:
         student = Student(snapshot.__iter__().__next__())
         attendance = Attendance(student, args.get('tag_uuid'))
+        history = client.collection(f'attendance_history/student/{request.auth.uid}') \
+            .where(filter=base_query.FieldFilter('subject_name', '==', attendance.subject.name)) \
+            .order_by('timestamp', 'DESCENDING') \
+            .get()
+        try:
+            timestamp = float(history.__iter__().__next__().get('timestamp'))
+            history_time = datetime.fromtimestamp(timestamp, timezone(timedelta(hours=9)))
+            print(history_time)
+            if (attendance.timestamp.date() == history_time.date()) and \
+                    (attendance.timestamp.time().hour == history_time.time().hour):
+                print('duplicate')
+                raise DuplicateAttendanceError
+        except StopIteration:
+            pass
         (_, document_ref) = client.collection(f'attendance_history/student/{request.auth.uid}') \
             .add(document_data=attendance.to_firestore())
         client.collection(f'attendance_history/professor/{attendance.professor.uid}') \
             .add(document_data=attendance.to_firestore(ref_id=document_ref.id))
         print(f'{document_ref.id} added on attendance history at {attendance.timestamp}.')
 
+    except StopIteration:
+        raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+                                  message='등록되지 않은 기기입니다.')
+
     except Exception as error:
-        raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.NOT_FOUND, message=str(error))
+        print(error)
+        raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT, message=str(error))
 
 
 @firestore_fn.on_document_updated(document='attendance_history/professor/{professor_uid}/*')
@@ -186,7 +205,7 @@ class Attendance:
                 'student_name': self.student.name,
                 'subject_name': self.subject.name,
                 'result': self.result,
-                'timestamp': str(self.timestamp)
+                'timestamp': self.timestamp.timestamp()
             }
         return {
             'professor_name': self.professor.name,
@@ -194,7 +213,7 @@ class Attendance:
             'student_name': self.student.name,
             'subject_name': self.subject.name,
             'result': self.result,
-            'timestamp': str(self.timestamp)
+            'timestamp': self.timestamp.timestamp()
         }
 
     def __get_subject(self) -> Subject:
