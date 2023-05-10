@@ -189,7 +189,7 @@ class Attendance:
         self.subject = self.__get_subject()
         self.professor = self.__get_professor()
         self.student = student
-        self.result = 'ok'
+        self.result = 'normal'
 
     def to_firestore(self, ref_id: str = None) -> dict:
         """Firebase에 저장하기 위한 형태로 객체를 변환해주는 메서드이다.
