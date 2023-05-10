@@ -34,13 +34,12 @@ def check_attendance(request: https_fn.CallableRequest):
         student = Student(snapshot.__iter__().__next__())
         attendance = Attendance(student, args.get('tag_uuid'))
         history = client.collection(f'attendance_history/student/{request.auth.uid}') \
-            .where(filter=base_query.FieldFilter('subject_name', '==', attendance.subject.name)) \
-            .order_by('timestamp', 'DESCENDING') \
+            .order_by('timestamp', direction='DESCENDING') \
+            .limit(1) \
             .get()
         try:
             timestamp = float(history.__iter__().__next__().get('timestamp'))
             history_time = datetime.fromtimestamp(timestamp, timezone(timedelta(hours=9)))
-            print(history_time)
             if (attendance.timestamp.date() == history_time.date()) and \
                     (attendance.timestamp.time().hour == history_time.time().hour):
                 print('duplicate')
