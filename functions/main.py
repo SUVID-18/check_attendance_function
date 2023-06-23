@@ -229,7 +229,12 @@ class Attendance:
             .where(filter=base_query.FieldFilter('start_at', '>=', str(self.timestamp.time()))) \
             .get()
         try:
-            return Subject(snapshot.__iter__().__next__())
+            result = Subject(snapshot.__iter__().__next__())
+            # 과목의 시작 시간에 유효시간을 더함으로서 현재 출결 가능한 시간인지 구하는 로직
+            end_attendance = datetime.strptime(result.start_at[:5], '%H:%M') + timedelta(minutes=result.valid_time)
+            if end_attendance.time() < self.timestamp.time():
+                raise SubjectNotFoundError
+            return result
         except StopIteration:
             raise SubjectNotFoundError
 
