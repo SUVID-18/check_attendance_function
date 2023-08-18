@@ -32,3 +32,16 @@ class Subject:
         self.start_at: str = document_snapshot.get('start_at')
         self.tag_uuid: str = document_snapshot.get('tag_uuid')
         self.valid_time = document_snapshot.get('valid_time')
+
+    def to_json(self) -> dict[str, str]:
+        """과목의 특정 정보를 JSON 형태로 반환한다.
+        Returns:
+            강의 이름, 강의 대상 학부 및 전공, 강의 시작 및 종료 시간에 대한 정보를 JSON형태로 반환한다.
+        """
+        return {
+            "department": self.department,
+            "major": self.major,
+            "start_at": self.start_at,
+            "end_at": self.end_at,
+            "name": self.name
+        }
