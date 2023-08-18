@@ -2,7 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 from firebase_admin import initialize_app, firestore
 from firebase_functions import https_fn, firestore_fn
-from google.cloud.firestore_v1 import Client, base_query, DocumentSnapshot
+from google.cloud.firestore_v1 import Client, base_query
+
+from attendance import Attendance
+from attendance_error import DuplicateAttendanceError
+from student import Student
 
 initialize_app()
 
@@ -39,7 +43,8 @@ def check_attendance(request: https_fn.CallableRequest):
             .get()
         try:
             timestamp = float(history.__iter__().__next__().get('timestamp'))
-            history_time = datetime.fromtimestamp(timestamp, timezone(timedelta(hours=9)))
+            history_time = datetime.fromtimestamp(
+                timestamp, timezone(timedelta(hours=9)))
             if (attendance.timestamp.date() == history_time.date()) and \
                     (attendance.timestamp.time().hour == history_time.time().hour):
                 print('duplicate')
@@ -50,7 +55,8 @@ def check_attendance(request: https_fn.CallableRequest):
             .add(document_data=attendance.to_firestore())
         client.collection(f'attendance_history/professor/{attendance.professor.uid}') \
             .add(document_data=attendance.to_firestore(ref_id=document_ref.id))
-        print(f'{document_ref.id} added on attendance history at {attendance.timestamp}.')
+        print(
+            f'{document_ref.id} added on attendance history at {attendance.timestamp}.')
 
     except StopIteration:
         raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.PERMISSION_DENIED,
@@ -58,7 +64,8 @@ def check_attendance(request: https_fn.CallableRequest):
 
     except Exception as error:
         print(error)
-        raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT, message=str(error))
+        raise https_fn.HttpsError(
+            code=https_fn.FunctionsErrorCode.INVALID_ARGUMENT, message=str(error))
 
 
 @firestore_fn.on_document_updated(document='attendance_history/professor/{professor_uid}/*')
@@ -79,177 +86,9 @@ def update_attendance(event: firestore_fn.Event[firestore_fn.Change[firestore_fn
         client.collection(f'attendance_history/student/{student_uid}') \
             .document(ref_id) \
             .update({'result': after.get('result')})
-        print(f'Update attendance information (result is now {after.get("result")}).')
+        print(
+            f'Update attendance information (result is now {after.get("result")}).')
     except StopIteration:
         print('대상 학생이 존재하지 않습니다.')
 
 
-class SubjectNotFoundError(Exception):
-
-    def __init__(self):
-        super().__init__('강의를 찾을 수 없습니다.(출결 시간 초과)')
-        print('Can not get subject info (subject no exist.)')
-
-
-class ProfessorNotFoundError(Exception):
-    """강의자 정보를 찾을 수 없을 때 발생하는 예외"""
-
-    def __init__(self):
-        super().__init__('강의자 정보를 확인할 수 없습니다.')
-        print('Can not find professor with id')
-
-
-class DuplicateAttendanceError(Exception):
-    """출결 정보가 중복될 때 발생하는 예외"""
-
-    def __init__(self) -> None:
-        super().__init__('이미 출결 처리된 과목입니다.')
-        print('already completed attendance check')
-
-
-class Student:
-    """학생에 대한 정보에 해당하는 클래스
-    출결 시 학생 정보 조회를 위해 사용되는 클래스
-    Attributes:
-       name: 학생의 이름
-       student_id: 학번
-    """
-
-    def __init__(self, document_snapshot: DocumentSnapshot):
-        """Firestore로부터 `Student`객체를 생성한다.
-        Args:
-            document_snapshot: Firestore에서 받아온 응답에 해당된다.
-        """
-        self.name: str = document_snapshot.get('name')
-        self.student_id: str = document_snapshot.get('student_id')
-
-
-class Subject:
-    """과목에 대한 정보에 해당하는 클래스
-    출결 시 과목 정보 조회를 위해 사용되는 클래스
-    Attributes:
-        day_week: 수업 진행 요일(0: 월요일, 1: 화요일, ... , 6: 일요일)
-        department: 수강 대상 학부
-        end_at: 강의 종료 시간
-        id: 과목 ID
-        major: 수강 대상 전공
-        name: 과목 이름
-        professor_id: 강의자의 교번
-        start_at: 강의 시작 시간
-        tag_uuid: 태그(강의실) UUID
-        valid_time: 출결 유효 시간
-    """
-
-    def __init__(self, document_snapshot: DocumentSnapshot):
-        """Firestore로부터 `Subject`객체를 생성한다.
-        Args:
-            document_snapshot: Firestore에서 받아온 응답에 해당된다.
-        """
-        self.day_week: int = document_snapshot.get('day_week')
-        self.department: str = document_snapshot.get('department')
-        self.end_at: str = document_snapshot.get('end_at')
-        self.id: str = document_snapshot.get('id')
-        self.major: str = document_snapshot.get('major')
-        self.name: str = document_snapshot.get('name')
-        self.professor_id: str = document_snapshot.get('professor_id')
-        self.start_at: str = document_snapshot.get('start_at')
-        self.tag_uuid: str = document_snapshot.get('tag_uuid')
-        self.valid_time = document_snapshot.get('valid_time')
-
-
-class Professor:
-    """강의자에 대한 정보에 해당하는 클래스
-    출결 시 강의자의 정보 조회를 위해 사용되는 클래스
-    Attributes:
-       id: 강의자의 교번
-       name: 강의자 이름
-       uid: 강의자의 UID
-    """
-
-    def __init__(self, document_snapshot: DocumentSnapshot):
-        """강의자에 대한 정보를 가진 객체이다.
-        Args:
-            document_snapshot: Firestore에서 받아온 응답에 해당된다.
-        """
-        self.id = document_snapshot.get('id')
-        self.name = document_snapshot.get('name')
-        self.uid = document_snapshot.id
-
-
-class Attendance:
-    def __init__(self, student: Student, tag_uuid: str):
-        """학생의 출결에 관한 정보를 가지고 있는 객체이다.
-        Args:
-            student: Student형태의 학생 객체이다.
-            tag_uuid: 강의실의 고유 ID이다.
-        """
-        self.tag_uuid = tag_uuid
-        self.timestamp = datetime.now(timezone(timedelta(hours=9)))
-        self.subject = self.__get_subject()
-        self.professor = self.__get_professor()
-        self.student = student
-        self.result = 'normal'
-
-    def to_firestore(self, ref_id: str = None) -> dict:
-        """Firebase에 저장하기 위한 형태로 객체를 변환해주는 메서드이다.
-        Args:
-            ref_id (optional): 학생용 출결 기록 컬렉션의 문서 ID
-        Returns:
-            Firestore에 값을 추가할 때 사용되는 반환값
-        """
-        if ref_id is not None:
-            return {
-                'ref_id': ref_id,
-                'student_id': self.student.student_id,
-                'student_name': self.student.name,
-                'subject_name': self.subject.name,
-                'result': self.result,
-                'timestamp': self.timestamp.timestamp()
-            }
-        return {
-            'professor_name': self.professor.name,
-            'student_id': self.student.student_id,
-            'student_name': self.student.name,
-            'subject_name': self.subject.name,
-            'result': self.result,
-            'timestamp': self.timestamp.timestamp()
-        }
-
-    def __get_subject(self) -> Subject:
-        """강의실 태그 UUID와 현재 시간을 이용해 과목의 정보를 가져오는 메서드이다.
-        Returns:
-            과목의 정보를 반환한다.
-        Raises:
-            SubjectNotFoundError: 과목을 찾을 수 없거나 출석 유효시간이 지났을 때
-        """
-        client: Client = firestore.client()
-        snapshot = client.collection('subjects') \
-            .where(filter=base_query.FieldFilter('tag_uuid', '==', self.tag_uuid)) \
-            .where(filter=base_query.FieldFilter('day_week', '==', self.timestamp.weekday())) \
-            .where(filter=base_query.FieldFilter('start_at', '>=', str(self.timestamp.time()))) \
-            .get()
-        try:
-            result = Subject(snapshot.__iter__().__next__())
-            # 과목의 시작 시간에 유효시간을 더함으로서 현재 출결 가능한 시간인지 구하는 로직
-            end_attendance = datetime.strptime(result.start_at[:5], '%H:%M') + timedelta(minutes=result.valid_time)
-            if end_attendance.time() < self.timestamp.time():
-                raise SubjectNotFoundError
-            return result
-        except StopIteration:
-            raise SubjectNotFoundError
-
-    def __get_professor(self) -> Professor:
-        """객체의 강의자 ID를 통해 강의자의 이름을 알아오는 메서드
-        Returns:
-            강의자에 대한 정보를 가진 객체
-        Raises:
-            ProfessorNotFoundError: 강의자 ID를 통해 강의자를 찾지 못한 경우
-        """
-        client: Client = firestore.client()
-        snapshot = client.collection('professors') \
-            .where(filter=base_query.FieldFilter('id', '==', self.subject.professor_id)) \
-            .get()
-        try:
-            return Professor(snapshot.__iter__().__next__())
-        except StopIteration:
-            raise ProfessorNotFoundError
