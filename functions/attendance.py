@@ -37,7 +37,8 @@ class Attendance:
                 'student_name': self.student.name,
                 'subject_name': self.subject.name,
                 'result': self.result,
-                'timestamp': self.timestamp.timestamp()
+                'timestamp': self.timestamp.timestamp(),
+                'subject_id': self.subject.subject_id
             }
         return {
             'professor_name': self.professor.name,
@@ -45,7 +46,8 @@ class Attendance:
             'student_name': self.student.name,
             'subject_name': self.subject.name,
             'result': self.result,
-            'timestamp': self.timestamp.timestamp()
+            'timestamp': self.timestamp.timestamp(),
+            'subject_id': self.subject.subject_id
         }
 
     def __get_subject(self) -> Subject:

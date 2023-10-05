@@ -32,6 +32,7 @@ class Subject:
         self.start_at: str = document_snapshot.get('start_at')
         self.tag_uuid: str = document_snapshot.get('tag_uuid')
         self.valid_time = document_snapshot.get('valid_time')
+        self.subject_id = document_snapshot.id
 
     def to_json(self) -> dict[str, str]:
         """과목의 특정 정보를 JSON 형태로 반환한다.
