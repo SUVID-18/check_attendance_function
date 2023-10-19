@@ -112,17 +112,17 @@ def update_attendance(event: firestore_fn.Event[firestore_fn.Change[firestore_fn
         .where(filter=base_query.FieldFilter('student_id', '==', student_id)) \
         .get()
     try:
-        student_uid = snapshot.__iter__().__next__().id
+        student = Student(snapshot.__iter__().__next__())
+        student_uid = student.document_id
         client.collection(f'attendance_history/student/{student_uid}') \
             .document(ref_id) \
             .update({'result': after.get('result')})
         print(
             f'Update attendance information (result is now {after.get("result")}).')
-        # TODO: 메세지 알림 보내기 (토큰값 추가 필요)
         message = messaging.Message(
             data={
                 'subject': event.data.before.get('subject_name')
-            }
+            }, token=student.token
         )
         response = messaging.send(message)
         print('[ %s ] 메시지를 정상적으로 보냈습니다.' % response)
