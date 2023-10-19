@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from firebase_admin import initialize_app, firestore
+from firebase_admin import initialize_app, firestore, messaging
 from firebase_functions import https_fn, firestore_fn
 from google.cloud.firestore_v1 import Client, base_query
 
@@ -37,7 +37,7 @@ def check_available_subjects(request: https_fn.CallableRequest):
         subject_iterator = iter(snapshot)
         subjects = [Subject(subject).to_json() for subject in subject_iterator]
         return subjects
-    except():
+    except ():
         raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.NOT_FOUND, message='강의실이 존재하지 않습니다.')
 
 
@@ -118,5 +118,13 @@ def update_attendance(event: firestore_fn.Event[firestore_fn.Change[firestore_fn
             .update({'result': after.get('result')})
         print(
             f'Update attendance information (result is now {after.get("result")}).')
+        # TODO: 메세지 알림 보내기 (토큰값 추가 필요)
+        message = messaging.Message(
+            data={
+                'subject': event.data.before.get('subject_name')
+            }
+        )
+        response = messaging.send(message)
+        print('[ %s ] 메시지를 정상적으로 보냈습니다.' % response)
     except StopIteration:
         print('대상 학생이 존재하지 않습니다.')

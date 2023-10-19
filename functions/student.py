@@ -7,6 +7,7 @@ class Student:
     Attributes:
        name: 학생의 이름
        student_id: 학번
+       token: 학생의 토큰 (메시지 수신용 토큰)
     """
 
     def __init__(self, document_snapshot: DocumentSnapshot):
@@ -16,3 +17,4 @@ class Student:
         """
         self.name: str = document_snapshot.get('name')
         self.student_id: str = document_snapshot.get('student_id')
+        self.token: str = document_snapshot.get('token')
