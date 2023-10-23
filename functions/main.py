@@ -37,7 +37,7 @@ def check_available_subjects(request: https_fn.CallableRequest):
         subject_iterator = iter(snapshot)
         subjects = [Subject(subject).to_json() for subject in subject_iterator]
         return subjects
-    except ():
+    except():
         raise https_fn.HttpsError(code=https_fn.FunctionsErrorCode.NOT_FOUND, message='강의실이 존재하지 않습니다.')
 
 
