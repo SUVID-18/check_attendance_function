@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from firebase_admin import initialize_app, firestore
+from firebase_admin import initialize_app, firestore, messaging
 from firebase_functions import https_fn, firestore_fn
 from google.cloud.firestore_v1 import Client, base_query
 
@@ -112,11 +112,20 @@ def update_attendance(event: firestore_fn.Event[firestore_fn.Change[firestore_fn
         .where(filter=base_query.FieldFilter('student_id', '==', student_id)) \
         .get()
     try:
-        student_uid = snapshot.__iter__().__next__().id
+        student = Student(snapshot.__iter__().__next__())
+        student_uid = student.document_id
         client.collection(f'attendance_history/student/{student_uid}') \
             .document(ref_id) \
             .update({'result': after.get('result')})
         print(
             f'Update attendance information (result is now {after.get("result")}).')
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title='출결 정보 변경',
+                body='교수님에 의해 %s 과목의 출결 정보가 변경되었습니다.' % event.data.before.get('subject_name')
+            ), token=student.token
+        )
+        response = messaging.send(message)
+        print('[ %s ] 메시지를 정상적으로 보냈습니다.' % response)
     except StopIteration:
         print('대상 학생이 존재하지 않습니다.')
