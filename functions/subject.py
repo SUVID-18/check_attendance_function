@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from google.cloud.firestore_v1 import DocumentSnapshot
 
 
@@ -24,12 +26,12 @@ class Subject:
         """
         self.day_week: int = document_snapshot.get('day_week')
         self.department: str = document_snapshot.get('department')
-        self.end_at: str = document_snapshot.get('end_at')
+        self.end_at: datetime = datetime.fromtimestamp(document_snapshot.get('end_at'))
         self.id: str = document_snapshot.get('id')
         self.major: str = document_snapshot.get('major')
         self.name: str = document_snapshot.get('name')
         self.professor_id: str = document_snapshot.get('professor_id')
-        self.start_at: str = document_snapshot.get('start_at')
+        self.start_at: datetime = datetime.fromtimestamp(document_snapshot.get('start_at'))
         self.tag_uuid: str = document_snapshot.get('tag_uuid')
         self.valid_time = document_snapshot.get('valid_time')
         self.subject_id = document_snapshot.id
@@ -39,10 +41,13 @@ class Subject:
         Returns:
             강의 이름, 강의 대상 학부 및 전공, 강의 시작 및 종료 시간에 대한 정보를 JSON형태로 반환한다.
         """
+        # 한국 시간대에 맞게 변환
+        start_time = self.start_at + timedelta(hours=9)
+        end_time = self.end_at + timedelta(hours=9)
         return {
             "department": self.department,
             "major": self.major,
-            "start_at": self.start_at,
-            "end_at": self.end_at,
+            "start_at": start_time.strftime('%H:%M'),
+            "end_at": end_time.strftime('%H:%M'),
             "name": self.name
         }
