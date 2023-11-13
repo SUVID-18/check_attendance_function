@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from google.cloud.firestore_v1 import DocumentSnapshot
 
@@ -41,10 +41,13 @@ class Subject:
         Returns:
             강의 이름, 강의 대상 학부 및 전공, 강의 시작 및 종료 시간에 대한 정보를 JSON형태로 반환한다.
         """
+        # 한국 시간대에 맞게 변환
+        start_time = self.start_at + timedelta(hours=9)
+        end_time = self.end_at + timedelta(hours=9)
         return {
             "department": self.department,
             "major": self.major,
-            "start_at": self.start_at.strftime('%H:%M'),
-            "end_at": self.end_at.strftime('%H:%M'),
+            "start_at": start_time.strftime('%H:%M'),
+            "end_at": end_time.strftime('%H:%M'),
             "name": self.name
         }
