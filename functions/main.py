@@ -39,7 +39,6 @@ def get_all_subjects(request: https_fn.CallableRequest):
     Notes:
         해당 함수는 직접 호출이 아닌 Firebase Function에 의해 호출되며 호출 시 아래와 같은 매개변수가 필요하다
 
-        * device_uuid: 학생 기기의 UUID
         * tag_uuid: 태그(강의실) UUID
 
     Returns:
