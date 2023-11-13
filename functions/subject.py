@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from google.cloud.firestore_v1 import DocumentSnapshot
 
 
@@ -24,12 +26,12 @@ class Subject:
         """
         self.day_week: int = document_snapshot.get('day_week')
         self.department: str = document_snapshot.get('department')
-        self.end_at: str = document_snapshot.get('end_at')
+        self.end_at: datetime = datetime.fromtimestamp(document_snapshot.get('end_at'))
         self.id: str = document_snapshot.get('id')
         self.major: str = document_snapshot.get('major')
         self.name: str = document_snapshot.get('name')
         self.professor_id: str = document_snapshot.get('professor_id')
-        self.start_at: str = document_snapshot.get('start_at')
+        self.start_at: datetime = datetime.fromtimestamp(document_snapshot.get('start_at'))
         self.tag_uuid: str = document_snapshot.get('tag_uuid')
         self.valid_time = document_snapshot.get('valid_time')
         self.subject_id = document_snapshot.id
@@ -42,7 +44,7 @@ class Subject:
         return {
             "department": self.department,
             "major": self.major,
-            "start_at": self.start_at,
-            "end_at": self.end_at,
+            "start_at": self.start_at.strftime('%H:%M'),
+            "end_at": self.end_at.strftime('%H:%M'),
             "name": self.name
         }
