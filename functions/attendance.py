@@ -58,8 +58,9 @@ class Attendance:
             SubjectNotFoundError: 과목을 찾을 수 없거나 출석 유효시간이 지났을 때
         """
         client: Client = firestore.client()
-        now_time = datetime(year=1970, month=1, day=1, hour=self.timestamp.hour, minute=self.timestamp.minute,
-                            tzinfo=timezone(timedelta(hours=9)))
+        # 강의 시작 시간 후 30분이 지나기 전 까지는 출결 가능한 과목으로 출력은 시키도록 함(실제 출결은 valid_time을 따름)
+        now_time = (datetime(year=1970, month=1, day=1, hour=self.timestamp.hour, minute=self.timestamp.minute)
+                    - timedelta(hours=9, minutes=30))
         print('now_time stamp is %f' % now_time.timestamp())
         snapshot = client.collection('subjects') \
             .where(filter=base_query.FieldFilter('tag_uuid', '==', self.tag_uuid)) \
@@ -70,7 +71,7 @@ class Attendance:
             result = Subject(snapshot.__iter__().__next__())
             # 과목의 시작 시간에 유효시간을 더함으로서 현재 출결 가능한 시간인지 구하는 로직
             end_attendance = result.start_at + timedelta(minutes=result.valid_time)
-            if end_attendance.time() > now_time.time():
+            if end_attendance.timestamp() < now_time.timestamp():
                 raise SubjectNotFoundError
             return result
         except StopIteration:

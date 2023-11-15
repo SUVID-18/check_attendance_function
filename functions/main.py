@@ -49,7 +49,8 @@ def get_all_subjects(request: https_fn.CallableRequest):
     try:
         subjects = client.collection('subjects') \
             .where(filter=base_query.FieldFilter('tag_uuid', '==', args.get('tag_uuid'))) \
-            .where(filter=base_query.FieldFilter('day_week', '==', datetime.now().weekday())) \
+            .where(
+            filter=base_query.FieldFilter('day_week', '==', datetime.now(timezone(timedelta(hours=9))).weekday())) \
             .get()
         return list(map(lambda subject: Subject(subject).to_json(), subjects))
     except StopIteration:
